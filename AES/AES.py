@@ -25,8 +25,8 @@ R_const = [
 ]
 
 def SBOX_get_value(row, col):
-    byte=S_BOX[int(row)][int(col)][0]
-    byte2=S_BOX[int(row)][int(col)][1]
+    byte=S_BOX[int(row,16)][int(col,16)][0]
+    byte2=S_BOX[int(row,16)][int(col,16)][1]
     return byte,byte2
 
 
@@ -49,42 +49,53 @@ def generate_keys(key):
     keys_10=[]
     
     key="5468617473206D79204B756E67204675"
-    key=list(key)
+    keys_10.append(key)
 
-    #splitting key to Ws
-    w=[]
-    index=0
-    for i in range (4):
-        w.append(key[index:index+8])
-        index+=8
-    #byte shifting
-    g_w3=w[3]
-    g_w3=byte_shift(g_w3)
-    #sbox
-    for i in range (0,8,2):
-        g_w3[i], g_w3[i+1] = SBOX_get_value(g_w3[i],g_w3[i+1])
-    #XOR with Rconst
-    g_w3[0],g_w3[1]= XOR_R_const(g_w3[0],g_w3[1],0)
-    str_gw=str()
-    str_gw+=g_w3[0]+g_w3[1]+g_w3[2]+g_w3[3]+g_w3[4]+g_w3[5]+g_w3[6]+g_w3[7]
-    print(g_w3)
+    for i in range(10):
+        print("*")
+        key=list(keys_10[i])
 
-    #key2 generation
-    #converting the weights to one string
-    str_w= []
+        #splitting key to Ws
+        w=[]
+        index=0
+        for e in range (4):
+            w.append(key[index:index+8])
+            index+=8
+        #byte shifting
+        g_w3=w[3]
+        g_w3=byte_shift(g_w3)
+        print(g_w3)
+        #sbox
+        for j in range (0,8,2):
+            g_w3[j], g_w3[j+1] = SBOX_get_value(g_w3[j],g_w3[j+1])
+        #XOR with Rconst
+        print(g_w3)
+        g_w3[0],g_w3[1]= XOR_R_const(g_w3[0],g_w3[1],i)
+        print(g_w3)
+        str_gw=str()
+        str_gw+=g_w3[0]+g_w3[1]+g_w3[2]+g_w3[3]+g_w3[4]+g_w3[5]+g_w3[6]+g_w3[7]
+
+        #key2 generation
+        #converting the weights to one string
+        str_w= []
+        
+        for x in range (4):
+            str_w0=str()
+            str_w0+=w[x][0]+w[x][1]+w[x][2]+w[x][3]+w[x][4]+w[x][5]+w[x][6]+w[x][7]
+            str_w.append(str_w0)
+        new_w=[]
     
-    for i in range (4):
-        str_w0=str()
-        str_w0+=w[i][0]+w[i][1]+w[i][2]+w[i][3]+w[i][4]+w[i][5]+w[i][6]+w[i][7]
-        str_w.append(str_w0)
-    new_w=[]
-    
-    new_w.append(str('%X' % (int(str_w[0],16) ^ int(str_gw,16))))
-    new_w.append(str('%X' % (int(new_w[0],16) ^ int(str_w[1],16))))
-    new_w.append(str('%X' % (int(new_w[1],16) ^ int(str_w[2],16))))
-    new_w.append(str('%X' % (int(new_w[2],16) ^ int(str_w[3],16))))
-
-    print(new_w)
+        new_w.append(str('{:08x}'.format (int(str_w[0],16) ^ int(str_gw,16))))
+        new_w.append(str('{:08x}'.format (int(new_w[0],16) ^ int(str_w[1],16))))
+        new_w.append(str('{:08x}'.format (int(new_w[1],16) ^ int(str_w[2],16))))
+        new_w.append(str('{:08x}'.format (int(new_w[2],16) ^ int(str_w[3],16))))
+        
+        str_key=str()
+        for y in range(len(new_w)):
+            str_key+=new_w[y]
+        
+        keys_10.append(str_key)
+    print(len(keys_10))
     
 
 generate_keys(1)
