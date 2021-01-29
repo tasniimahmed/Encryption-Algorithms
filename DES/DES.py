@@ -83,6 +83,24 @@ def Permutation( key_pos_dic, permu_num):
                  24,25,26,27,28,29,
                  28,29,30,31,32,1]
 
+    permutation_choice4=[16,7,20,21,
+                         29,12,28,17,
+                          1,15,23,26,
+                          5,18,31,10,
+                          2,8,24,14,
+                         32,27,3,9,
+                         19,13,30,6,
+                         22,11,4,25]
+    
+    permutation_choice5 = [40,8,48,16,56,24,64,32,
+            39,7,47,15,55,23,63,31,
+            38,6,46,14,54,22,62,30,
+            37,5,45,13,53,21,61,29,
+            36,4,44,12,52,20,60,28,
+            35,3,43,11,51,19,59,27,
+            34,2,42,10,50,18,58,26,
+            33,1,41,9,49,17,57,25]
+
     if permu_num == 1:
         permutation_choice= permutation_choice1
     elif permu_num ==2:
@@ -91,9 +109,10 @@ def Permutation( key_pos_dic, permu_num):
         permutation_choice=permutation_choice3
     elif permu_num == 4:
         permutation_choice=expansion_choice
-    
-    #print("LIIIIk")
-    #print(key_pos_dic.keys())
+    elif permu_num == 5:
+        permutation_choice=permutation_choice4
+    elif permu_num == 6:
+        permutation_choice= permutation_choice5
 
     for i in permutation_choice:
         bit=key_pos_dic.get(i)
@@ -146,9 +165,7 @@ def fill_dic_indices(key):
 def generate_keys(key):
 
     keys_16 = []
-
     key_in_bin= str()
-    key= "0123456789ABCDEF"
     scale = 16 ## equals to hexadecimal
     for i in range (len(key)):
         key_in_bin+=bin(int(key[i], scale))[2:].zfill(4)
@@ -187,37 +204,101 @@ def to_sbox(bits_64):
         values.append(value)
     return values
 
+def recursive_DES(L,R,key, stop):
+    if stop == 16:
+        return L, R
+    else:
+        R0_dic=fill_dic_indices(R)
+        #expand R
+        R0_expanded= Permutation(R0_dic,4)
+        #xor R with key
+        
+        output=[]
+        for i in range (len(R0_expanded)):
+            out=int(R0_expanded[i]) ^ int(key[stop][i])
+            output.append(out)
+        
+        #SBOX
+        values=to_sbox(output)
+        values_in_bin=str()
+        for i in range(len(values)):
+            values_in_bin+=dec_to_bin(values[i],4)
+        values_pos_dic= fill_dic_indices(values_in_bin)
+        #final permutation
+        final_permutation_output= Permutation(values_pos_dic,5)
 
-def DES(plain, key):
-    P_in_bin= str()
-    plain= "0123456789ABCDEF"
-    scale = 16 ## equals to hexadecimal
-    for i in range (len(plain)):
-        P_in_bin+=bin(int(plain[i], scale))[2:].zfill(4)
-    
-    #key is 64
-    #filling a dictionary with the position of each bit for permutation
-    plain_pos_dic= fill_dic_indices(P_in_bin)
-    #intial permutation
-    first_permutation_output= Permutation( plain_pos_dic,3)
-    L0=first_permutation_output[:32]
-    R0= first_permutation_output[32:]
-    R0_dic=fill_dic_indices(R0)
-    #expand R
-    R0_expanded= Permutation(R0_dic,4)
-    #xor R with key
-    keys= generate_keys(key)
-    output=[]
-    for i in range (len(R0_expanded)):
-        out=int(R0_expanded[i]) ^ int(keys[0][i])
-        output.append(out)
-    
-    #SBOX
-    values=to_sbox(output)
-  
-    print(values)
+        R1=[]
+        for i in range (len(L)):
+            out=int(final_permutation_output[i]) ^ int(L[i])
+            R1.append(out)
+        stop+=1
+        return recursive_DES( R,R1,key,stop)
+
+def DES(plain, key, repeat):
+    if repeat-1 == 0:
+        P_in_bin= str()
+        #convert hexa to binary
+        for i in range (len(plain)):
+            P_in_bin+=bin(int(plain[i], 16))[2:].zfill(4)
+        
+        #key is 64
+        #filling a dictionary with the position of each bit for permutation
+        plain_pos_dic= fill_dic_indices(P_in_bin)
+        #intial permutation
+        first_permutation_output= Permutation( plain_pos_dic,3)
+        #splitting
+        L0=first_permutation_output[:32]
+        R0= first_permutation_output[32:]
+        keys= generate_keys(key)
+        L,R=recursive_DES(L0,R0,keys,0)
+        encrypted_text=[]
+        encrypted_text.extend(R)
+        encrypted_text.extend(L)
+        #final permutation
+        enc_pos_dic= fill_dic_indices(encrypted_text)
+        out_final_permu=Permutation(enc_pos_dic,6)
+        to_numpy = np.asarray(out_final_permu)
+        to_numpy=np.array_split(to_numpy, 16)
+        cipher =[]
+        for i in range(len(to_numpy)):
+            s= "0b"+str(to_numpy[i][0])+str(to_numpy[i][1])+str(to_numpy[i][2])+str(to_numpy[i][3])
+            n='%X' % int(s, 2)
+            cipher.append(n)
+        return cipher
+    else:
+        P_in_bin= str()
+        #convert hexa to binary
+        for i in range (len(plain)):
+            P_in_bin+=bin(int(plain[i], 16))[2:].zfill(4)
+        
+        #key is 64
+        #filling a dictionary with the position of each bit for permutation
+        plain_pos_dic= fill_dic_indices(P_in_bin)
+        #intial permutation
+        first_permutation_output= Permutation( plain_pos_dic,3)
+        #splitting
+        L0=first_permutation_output[:32]
+        R0= first_permutation_output[32:]
+        keys= generate_keys(key)
+        L,R=recursive_DES(L0,R0,keys,0)
+        encrypted_text=[]
+        encrypted_text.extend(R)
+        encrypted_text.extend(L)
+        #final permutation
+        enc_pos_dic= fill_dic_indices(encrypted_text)
+        out_final_permu=Permutation(enc_pos_dic,6)
+        to_numpy = np.asarray(out_final_permu)
+        to_numpy=np.array_split(to_numpy, 16)
+        cipher =[]
+        for i in range(len(to_numpy)):
+            s= "0b"+str(to_numpy[i][0])+str(to_numpy[i][1])+str(to_numpy[i][2])+str(to_numpy[i][3])
+            n='%X' % int(s, 2)
+            cipher.append(n)
+        repeat= repeat-1
+        return DES(cipher,key,repeat)
 
     
-x=generate_keys(1)
-DES(1,5)
+#x=generate_keys(1)
+x=DES("FFFFFFFFFFFFFFFF","0000000000000000",2)
+print(x)
 #print(len(x))
