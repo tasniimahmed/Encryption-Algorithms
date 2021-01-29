@@ -204,7 +204,7 @@ def to_sbox(bits_64):
         values.append(value)
     return values
 
-def recursive_DES(L,R,key, stop):
+def recursive_DES(L,R,key, stop,key_index,decrypt):
     if stop == 16:
         return L, R
     else:
@@ -215,7 +215,7 @@ def recursive_DES(L,R,key, stop):
         
         output=[]
         for i in range (len(R0_expanded)):
-            out=int(R0_expanded[i]) ^ int(key[stop][i])
+            out=int(R0_expanded[i]) ^ int(key[key_index][i])
             output.append(out)
         
         #SBOX
@@ -232,9 +232,13 @@ def recursive_DES(L,R,key, stop):
             out=int(final_permutation_output[i]) ^ int(L[i])
             R1.append(out)
         stop+=1
-        return recursive_DES( R,R1,key,stop)
+        if(decrypt):
+            key_index-=1
+        else:
+            key_index+=1
+        return recursive_DES( R,R1,key,stop,key_index,decrypt)
 
-def DES(plain, key, repeat):
+def DES(plain, key, repeat,decrypt):
     if repeat-1 == 0:
         P_in_bin= str()
         #convert hexa to binary
@@ -250,7 +254,11 @@ def DES(plain, key, repeat):
         L0=first_permutation_output[:32]
         R0= first_permutation_output[32:]
         keys= generate_keys(key)
-        L,R=recursive_DES(L0,R0,keys,0)
+
+        if (decrypt):
+            L,R=recursive_DES(L0,R0,keys,0,15,1)
+        else:
+            L,R=recursive_DES(L0,R0,keys,0,0,0)
         encrypted_text=[]
         encrypted_text.extend(R)
         encrypted_text.extend(L)
@@ -279,8 +287,13 @@ def DES(plain, key, repeat):
         #splitting
         L0=first_permutation_output[:32]
         R0= first_permutation_output[32:]
+        #key generation
         keys= generate_keys(key)
-        L,R=recursive_DES(L0,R0,keys,0)
+
+        if (decrypt):
+            L,R=recursive_DES(L0,R0,keys,0,15,1)
+        else:
+            L,R=recursive_DES(L0,R0,keys,0,0,0)
         encrypted_text=[]
         encrypted_text.extend(R)
         encrypted_text.extend(L)
@@ -295,10 +308,17 @@ def DES(plain, key, repeat):
             n='%X' % int(s, 2)
             cipher.append(n)
         repeat= repeat-1
-        return DES(cipher,key,repeat)
+        return DES(cipher,key,repeat,decrypt)
 
     
-#x=generate_keys(1)
-x=DES("FFFFFFFFFFFFFFFF","0000000000000000",2)
-print(x)
-#print(len(x))
+
+
+
+key = input("Enter The key: ") 
+plain = input("Enter The plain text: ") 
+num = input("Enter number of encryption: ") 
+x=DES(plain,key,int(num),0)
+print(''.join(x))
+print("DECRYPTION:")
+y=DES(x,key,int(num),1)
+print(''.join(y))
