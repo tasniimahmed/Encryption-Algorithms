@@ -38,6 +38,13 @@ def byte_shift(w):
     z.append(w[1])
     return z
 
+def byte_shift_true(w):
+    z=[]
+    for i in range (len(w)-1):
+        z.append(w[i+1])
+    z.append(w[0])
+    return z
+
 def XOR_R_const(byte1, byte2,round_n):
     R_byte1=R_const[round_n][0]
     R_byte2 =R_const[round_n][1]
@@ -48,11 +55,10 @@ def XOR_R_const(byte1, byte2,round_n):
 def generate_keys(key):
     keys_10=[]
     
-    key="5468617473206D79204B756E67204675"
+    #key="5468617473206D79204B756E67204675"
     keys_10.append(key)
 
     for i in range(10):
-        print("*")
         key=list(keys_10[i])
 
         #splitting key to Ws
@@ -64,14 +70,11 @@ def generate_keys(key):
         #byte shifting
         g_w3=w[3]
         g_w3=byte_shift(g_w3)
-        print(g_w3)
         #sbox
         for j in range (0,8,2):
             g_w3[j], g_w3[j+1] = SBOX_get_value(g_w3[j],g_w3[j+1])
         #XOR with Rconst
-        print(g_w3)
         g_w3[0],g_w3[1]= XOR_R_const(g_w3[0],g_w3[1],i)
-        print(g_w3)
         str_gw=str()
         str_gw+=g_w3[0]+g_w3[1]+g_w3[2]+g_w3[3]+g_w3[4]+g_w3[5]+g_w3[6]+g_w3[7]
 
@@ -95,7 +98,98 @@ def generate_keys(key):
             str_key+=new_w[y]
         
         keys_10.append(str_key)
-    print(len(keys_10))
-    
+    return keys_10
 
-generate_keys(1)
+def to_SBOX(plain):
+    w=[]
+    final=[]
+    
+    index=0
+    plain=list(plain)
+    for e in range (4):
+        w.append(plain[index:index+8])
+        index+=8
+    for i in range(len(w)):
+        for j in range (0,8,2):
+            to_2bytes=str()
+            w[i][j], w[i][j+1] = SBOX_get_value(w[i][j],w[i][j+1])
+            to_2bytes+=w[i][j]+w[i][j+1]
+            
+            final.append(to_2bytes)
+    return final
+
+def to_shifting_bytes(plain):
+    x=np.asarray(plain)
+    x=np.asarray(np.array_split(plain, 4))
+    x=x.transpose()
+    for i in range(len(x)):
+      for j in range(i):
+          x[i]=byte_shift_true(x[i])
+    return x
+
+
+xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
+
+
+def mix_single_column(a):
+    print(hex(int(a[0],16)))
+    #print((int(a[0],16)+0x200) ^0x1B)
+    #a=a.tolist()
+    print(type(a))
+    print(a)
+    #a=['D4','BF','5D','30']
+    t = int(a[0],16) ^ int(a[1],16) ^ int(a[2],16) ^ int(a[3],16)
+    u = int(a[0],16)
+    a[0] = '{:02x}'.format (int(a[0],16) ^ t ^ xtime(int(a[0],16) ^ int(a[1],16)))
+    a[1] = '{:02x}'.format (int(a[1],16) ^ t ^ xtime(int(a[1],16) ^ int(a[2],16)))
+    a[2] = '{:02x}'.format (int(a[2],16) ^ t ^ xtime(int(a[2],16) ^ int(a[3],16)))
+    a[3] = '{:02x}'.format (int(a[3],16) ^ t ^ xtime(int(a[3],16) ^ u))
+    return a
+
+def mix_columns(s):
+    final_list=[]
+    s=s.transpose()
+    for i in range(4):
+        final_list.append(mix_single_column(s[i].tolist()))
+    return final_list
+
+"""
+def mix_columns(plain):
+    output=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],]
+    mix_cols=[["02", "03", "01", "01" ],
+                      ["01" ,"02" ,"03" ,"01" ],
+                      ["01" ,"01" ,"02" ,"03" ],
+                      ["03", "01", "01" ,"02"]]
+    for row in range(len(mix_cols)):
+        temp=[]
+        for i in range(len(plain[0])):
+            temp2=0
+            for j in range (len(plain)):
+                temp2+= int(mix_cols[row][j],16) * int(plain[j][i],16)
+                print(mix_cols[row][j])
+                print(plain[j][i])
+                output[row][i] ^= int(mix_cols[row][j],16) and int(plain[j][i],16)
+        #temp.append(str('{:02x}'.format (int(mix_cols[row][col],16) * int(plain[col][row],16))))
+        #temp.append(temp2)
+        #output.append(temp)
+    #print(output)
+    return output
+"""
+def AES(plain,key):
+    keys=generate_keys(key)
+    #first XOR
+    output_XOR= str('{:032x}'.format (int(plain,16) ^ int(keys[0],16)))
+    for i in range(10):
+        output_SBOX=to_SBOX(output_XOR)
+        output_shifting=to_shifting_bytes(output_SBOX)
+        print(output_shifting)
+        x=mix_columns(output_shifting)
+        print(x)
+        x=np.asarray(x)
+        x=x.transpose()
+        print(x)
+        break
+
+
+#generate_keys(1)
+AES("54776F204F6E65204E696E652054776F","5468617473206D79204B756E67204675")
