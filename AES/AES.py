@@ -19,12 +19,35 @@ S_BOX = [
     ["8C", "A1", "89", "0D", "BF", "E6", "42", "68", "41", "99", "2D", "0F", "B0", "54", "BB", "16"]
 ]
 
+inv_SBOX = [
+    ["52", "09", "6A", "D5", "30", "36", "A5", "38", "BF", "40", "A3", "9E", "81", "F3", "D7", "FB"],
+    ["7C", "E3", "39", "82", "9B", "2F", "FF", "87", "34", "8E", "43", "44", "C4", "DE", "E9", "CB"],
+    ["54", "7B", "94", "32", "A6", "C2", "23", "3D", "EE", "4C", "95", "0B", "42", "FA", "C3", "4E"],
+    ["08", "2E", "A1", "66", "28", "D9", "24", "B2", "76", "5B", "A2", "49", "6D", "8B", "D1", "25"],
+    ["72", "F8", "F6", "64", "86", "68", "98", "16", "D4", "A4", "5C", "CC", "5D", "65", "B6", "92"],
+    ["6C", "70", "48", "50", "FD", "ED", "B9", "DA", "5E", "15", "46", "57", "A7", "8D", "9D", "84"],
+    ["90", "D8", "AB", "00", "8C", "BC", "D3", "0A", "F7", "E4", "58", "05", "B8", "B3", "45", "06"],
+    ["D0", "2C", "1E", "8F", "CA", "3F", "0F", "02", "C1", "AF", "BD", "03", "01", "13", "8A", "6B"],
+    ["3A", "91", "11", "41", "4F", "67", "DC", "EA", "97", "F2", "CF", "CE", "F0", "B4", "E6", "73"],
+    ["96", "AC", "74", "22", "E7", "AD", "35", "85", "E2", "F9", "37", "E8", "1C", "75", "DF", "6E"],
+    ["47", "F1", "1A", "71", "1D", "29", "C5", "89", "6F", "B7", "62", "0E", "AA", "18", "BE", "1B"],
+    ["FC", "56", "3E", "4B", "C6", "D2", "79", "20", "9A", "DB", "C0", "FE", "78", "CD", "5A", "F4"],
+    ["1F", "DD", "A8", "33", "88", "07", "C7", "31", "B1", "12", "10", "59", "27", "80", "EC", "5F"],
+    ["60", "51", "7F", "A9", "19", "B5", "4A", "0D", "2D", "E5", "7A", "9F", "93", "C9", "9C", "EF"],
+    ["A0", "E0", "3B", "4D", "AE", "2A", "F5", "B0", "C8", "EB", "BB", "3C", "83", "53", "99", "61"],
+    ["17", "2B", "04", "7E", "BA", "77", "D6", "26", "E1", "69", "14", "63", "55", "21", "0C", "7D"]
+]
+
 R_const = [
      "01", "02", "04", "08","10",
     "20", "40", "80", "1B","36"
 ]
 
-def SBOX_get_value(row, col):
+def SBOX_get_value(row, col, decr=0):
+    if(decr):
+        byte=inv_SBOX[int(row,16)][int(col,16)][0]
+        byte2=inv_SBOX[int(row,16)][int(col,16)][1]
+        return byte,byte2
     byte=S_BOX[int(row,16)][int(col,16)][0]
     byte2=S_BOX[int(row,16)][int(col,16)][1]
     return byte,byte2
@@ -38,11 +61,16 @@ def byte_shift(w):
     z.append(w[1])
     return z
 
-def byte_shift_true(w):
+def byte_shift_true(w, decrypt=0):
     z=[]
-    for i in range (len(w)-1):
-        z.append(w[i+1])
-    z.append(w[0])
+    if(decrypt==0):
+        for i in range (len(w)-1):
+            z.append(w[i+1])
+        z.append(w[0])
+    else:
+        z.append(w[len(w)-1])
+        for i in range (len(w)-1):
+            z.append(w[i])
     return z
 
 def XOR_R_const(byte1, byte2,round_n):
@@ -100,7 +128,15 @@ def generate_keys(key):
         keys_10.append(str_key)
     return keys_10
 
-def to_SBOX(plain):
+def to_SBOX(plain,decr=0):
+    if (decr):
+        for i in range(len(plain)):
+            for j in range(len(plain)):
+                to_2bytes=str()
+                x, y = SBOX_get_value(plain[i][j][0],plain[i][j][1],decr)
+                to_2bytes+=x+y
+                plain[i][j]=to_2bytes
+        return plain
     w=[]
     final=[]
     
@@ -127,11 +163,17 @@ def to_shifting_bytes(plain):
           x[i]=byte_shift_true(x[i])
     return x
 
+def to_shifting_bytes_decr(plain,decr):
+    for i in range(len(plain)):
+      for j in range(i):
+          plain[i]=byte_shift_true(plain[i],decr)
+    return plain
+
 
 xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 
 
-def mix_single_column(a):
+def mix_one_col(a):
     t = int(a[0],16) ^ int(a[1],16) ^ int(a[2],16) ^ int(a[3],16)
     u = int(a[0],16)
     a[0] = '{:02x}'.format (int(a[0],16) ^ t ^ xtime(int(a[0],16) ^ int(a[1],16)))
@@ -140,12 +182,26 @@ def mix_single_column(a):
     a[3] = '{:02x}'.format (int(a[3],16) ^ t ^ xtime(int(a[3],16) ^ u))
     return a
 
-def mix_columns(s):
+def mix_cols(s,decr=0):
+    final_list=[]
+    if(decr == 0):
+        s=s.transpose()
+    for i in range(4):
+        final_list.append(mix_one_col(s[i].tolist()))
+    return final_list
+
+def inv_mix_columns(s):
     final_list=[]
     s=s.transpose()
     for i in range(4):
-        final_list.append(mix_single_column(s[i].tolist()))
-    return final_list
+        u = xtime(xtime(int(s[i][0],16) ^ int(s[i][2],16)))
+        v = xtime(xtime(int(s[i][1],16) ^ int(s[i][3],16)))
+        s[i][0] =int(s[i][0],16) ^ u
+        s[i][1] =int(s[i][1],16) ^ v
+        s[i][2] =int(s[i][2],16) ^ u
+        s[i][3] = int(s[i][3],16) ^ v
+
+    return mix_cols(s)
 
 def key_to_numpy(key):
     w=[]
@@ -186,38 +242,82 @@ def mix_columns(plain):
     #print(output)
     return output
 """
-def XOR(plain, key):
+def XOR(plain, key,decr=0):
     out=str()
     for i in range(4):
         for j in range(4):
             out+= str('{:02x}'.format (int(plain[j][i],16) ^ int(key[j][0][i],16)))
     return out
 
-def AES(plain,key):
-    keys=generate_keys(key)
-    #first XOR
-    output_XOR= str('{:032x}'.format (int(plain,16) ^ int(keys[0],16)))
+def str_2_matrix(plain):
+    w=[]
+    final=[]
+    index=0
+    plain=list(plain)
+    for e in range (4):
+        w.append(plain[index:index+8])
+        index+=8
+    for i in range(len(w)):
+        for j in range (0,8,2):
+            to_2bytes=str()
+            to_2bytes+=w[i][j]+w[i][j+1]
+            
+            final.append(to_2bytes)
+    x=np.asarray(final)
+    x=np.asarray(np.array_split(final, 4))
+    x=x.transpose()
+    return x
 
-    input_sbox=[]
-    input_sbox.append(output_XOR)
-    for i in range(10):
-        output_SBOX=to_SBOX(input_sbox[i])
-        output_shifting=to_shifting_bytes(output_SBOX)
-        if i != 9:
-            output_mix=mix_columns(output_shifting)
-            output_mix=np.asarray(output_mix)
-            output_mix=output_mix.transpose()
-        new_key=key_to_numpy(keys[i+1])
-        if i == 9:
-            out_xor2=XOR(output_shifting,new_key)
-        else:
-            out_xor2=XOR(output_mix,new_key)
-        input_sbox.append(out_xor2)
-        #output_XOR2= str('{:032x}'.format (int(output_mix,16) ^ int(new_key,16)))
-        #print(out_xor2)
-    return out_xor2
+def AES(plain,key,decr=0):
+    keys=generate_keys(key)
+
+    if(decr==0):
+        #first XOR
+        output_XOR= str('{:032x}'.format (int(plain,16) ^ int(keys[0],16)))
+        #print(output_XOR)
+        input_sbox=[]
+        input_sbox.append(output_XOR)
+        for i in range(10):
+            output_SBOX=to_SBOX(input_sbox[i])
+            print(output_SBOX)
+            output_shifting=to_shifting_bytes(output_SBOX)
+            print(output_shifting)
+            if i != 9:
+                output_mix=mix_cols(output_shifting)
+                output_mix=np.asarray(output_mix)
+                output_mix=output_mix.transpose()
+            new_key=key_to_numpy(keys[i+1])
+            if i == 9:
+                out_xor2=XOR(output_shifting,new_key)
+            else:
+                out_xor2=XOR(output_mix,new_key)
+            input_sbox.append(out_xor2)
+            #output_XOR2= str('{:032x}'.format (int(output_mix,16) ^ int(new_key,16)))
+            #print(out_xor2)
+        return out_xor2
+    else:
+        #first XOR
+        output_XOR= str('{:032x}'.format (int(plain,16) ^ int(keys[len(keys)-1],16)))
+        input_shift=str_2_matrix(output_XOR)
+        input_shift_list=[]
+        input_shift_list.append(input_shift)
+        for i in range(10):
+            output_shifting=to_shifting_bytes_decr(input_shift_list[i],1)
+            #print(output_shifting)
+            output_SBOX=to_SBOX(output_shifting,1)
+            #print(output_SBOX)
+            new_key=key_to_numpy(keys[len(keys)-(i+2)])
+            out_xor=XOR(output_SBOX,new_key,1)
+            in_mix=str_2_matrix(out_xor)
+            if i !=9 :
+                out_mix=inv_mix_columns(in_mix)
+            input_shift_list.append(out_mix)
+            #print("out",out_mix)
+            
+        return out_xor
 
 
 #generate_keys(1)
-cipher=AES("54776F204F6E65204E696E652054776F","5468617473206D79204B756E67204675")
+#cipher=AES("54776F204F6E65204E696E652054776F","5468617473206D79204B756E67204675",1)
+cipher=AES("29C3505F571420F6402299B31A02D73A","5468617473206D79204B756E67204675",1)
 print(cipher)
