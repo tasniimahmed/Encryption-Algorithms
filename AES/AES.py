@@ -182,26 +182,34 @@ def mix_one_col(a):
     a[3] = '{:02x}'.format (int(a[3],16) ^ t ^ xtime(int(a[3],16) ^ u))
     return a
 
+
+
 def mix_cols(s,decr=0):
     final_list=[]
     if(decr == 0):
         s=s.transpose()
+    #s=s.transpose()
     for i in range(4):
-        final_list.append(mix_one_col(s[i].tolist()))
+        if(decr == 1):
+            final_list.append(mix_one_col(s[i].tolist()))
+        else:
+            final_list.append(mix_one_col(s[i]))
     return final_list
 
 def inv_mix_columns(s):
     final_list=[]
     s=s.transpose()
+    #s=list(s)
     for i in range(4):
+        s[i]=s[i].tolist()
         u = xtime(xtime(int(s[i][0],16) ^ int(s[i][2],16)))
         v = xtime(xtime(int(s[i][1],16) ^ int(s[i][3],16)))
-        s[i][0] =int(s[i][0],16) ^ u
-        s[i][1] =int(s[i][1],16) ^ v
-        s[i][2] =int(s[i][2],16) ^ u
-        s[i][3] = int(s[i][3],16) ^ v
-
-    return mix_cols(s)
+        s[i][0] ='{:02x}'.format (int(s[i][0],16) ^ u)
+        s[i][1] ='{:02x}'.format (int(s[i][1],16) ^ v)
+        s[i][2] ='{:02x}'.format (int(s[i][2],16) ^ u)
+        s[i][3] = '{:02x}'.format (int(s[i][3],16) ^ v)
+    #print(mix_cols(s))
+    return mix_cols(s,1)
 
 def key_to_numpy(key):
     w=[]
@@ -279,9 +287,8 @@ def AES(plain,key,decr=0):
         input_sbox.append(output_XOR)
         for i in range(10):
             output_SBOX=to_SBOX(input_sbox[i])
-            print(output_SBOX)
             output_shifting=to_shifting_bytes(output_SBOX)
-            print(output_shifting)
+            
             if i != 9:
                 output_mix=mix_cols(output_shifting)
                 output_mix=np.asarray(output_mix)
@@ -298,26 +305,48 @@ def AES(plain,key,decr=0):
     else:
         #first XOR
         output_XOR= str('{:032x}'.format (int(plain,16) ^ int(keys[len(keys)-1],16)))
+        #print("xor")
+        #print(output_XOR)
         input_shift=str_2_matrix(output_XOR)
         input_shift_list=[]
         input_shift_list.append(input_shift)
         for i in range(10):
             output_shifting=to_shifting_bytes_decr(input_shift_list[i],1)
+            #print("shiftrows")
             #print(output_shifting)
             output_SBOX=to_SBOX(output_shifting,1)
+            #print("sbox")
             #print(output_SBOX)
             new_key=key_to_numpy(keys[len(keys)-(i+2)])
             out_xor=XOR(output_SBOX,new_key,1)
+            #print("xor")
+            #print(out_xor)
             in_mix=str_2_matrix(out_xor)
+            
             if i !=9 :
                 out_mix=inv_mix_columns(in_mix)
+            out_mix=np.asarray(out_mix)
+            out_mix=out_mix.transpose()
             input_shift_list.append(out_mix)
-            #print("out",out_mix)
+            #print("mix")
+            #print(out_mix)
             
         return out_xor
 
 
-#generate_keys(1)
-#cipher=AES("54776F204F6E65204E696E652054776F","5468617473206D79204B756E67204675",1)
-cipher=AES("29C3505F571420F6402299B31A02D73A","5468617473206D79204B756E67204675",1)
-print(cipher)
+while(1):
+    enc_dec=input("press 0 for encryption \npress 1 for decryption \npress 2 to exit:")
+    if(2== int(enc_dec)):
+        break
+    key=input("Enter key in hex:")
+    texts=input("Enter text in hex:")
+    cipher=AES(texts,key,int(enc_dec))
+    print("output:")
+    print(cipher)
+    
+
+
+
+#cipher=AES("54776F204F6E65204E696E652054776F","5468617473206D79204B756E67204675",0)
+#cipher=AES("29C3505F571420F6402299B31A02D73A","5468617473206D79204B756E67204675",1)
+
