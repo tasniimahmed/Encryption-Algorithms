@@ -312,13 +312,23 @@ def DES(plain, key, repeat,decrypt):
 
     
 
+while(1):
+    enc_dec=input("press 0 for encryption \npress 1 for decryption \npress 2 to exit:")
+    if(2== int(enc_dec)):
+        break
+    key=input("Enter the key:")
+    plain=input("Enter text:")
+    num = input("Enter number of encryption/decryption: ") 
+    x=DES(plain,key,int(num),enc_dec)
+    print("output:")
+    print(''.join(x))
+    
 
+#key = input("Enter The key: ") 
+#plain = input("Enter The plain text: ") 
+#num = input("Enter number of encryption: ") 
+#x=DES(plain,key,int(num),0)
 
-key = input("Enter The key: ") 
-plain = input("Enter The plain text: ") 
-num = input("Enter number of encryption: ") 
-x=DES(plain,key,int(num),0)
-print(''.join(x))
-print("DECRYPTION:")
-y=DES(x,key,int(num),1)
-print(''.join(y))
+#print("DECRYPTION:")
+#y=DES(x,key,int(num),1)
+#print(''.join(y))
